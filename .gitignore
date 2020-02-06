@@ -17,7 +17,6 @@ run_R0_parallel.R
 *.1
 *.2
 *.sso
-*.exe
 *.b01
 *.b02
 *.b03
