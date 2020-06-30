@@ -26,7 +26,7 @@ A <- readRDS("Outputs/CATCH_processed.rds")
 # Select the gear to be used for CPUE analyses
 
 Gear.name <- c("DEEP_HANDLINE","INSHORE_HANDLINE","TROLLING")[1]
-add.wind         <- T           # Remove windspeed calculations to reduce processing time. This can take several hours depending on the selected gear.
+add.wind  <- F           # Remove windspeed calculations to reduce processing time. This can take several hours depending on the selected gear.
 
 # Sum LBS in the dataset so that species are only mentioned once per record
 A <- A[,list(LBS=sum(LBS)),by=list(DATE,MONTH,FYEAR,LICENSE,AREA,AREA_A,AREA_B,AREA_C,AREA_D,GEAR,GEAR_A,HOURS,PORT_LAND,FISHER,SPECIES)]
@@ -61,6 +61,7 @@ TL[is.na(TL)] <- 0
 TRIP_KEEP  <- TL[!(UKU_LBS==0&(PMUS_LBS!=0|D7_LBS!=0|S0_LBS!=0))]$TRIP
 #TRIP_KEEP <- TL[!(UKU_LBS==0&(PMUS_LBS!=0|S0_LBS!=0))]$TRIP # Keep the trip that caught D7 with no uku
 A          <- A[TRIP%in%TRIP_KEEP|DATE>="2003-01-01"] # Remove those trips, but just for the early data years
+#A          <- A[TRIP%in%TRIP_KEEP] # Remove those trips, but for all years, including recent ones. COMMENT OUT FOR BASE CASE.
 
 # Kona/South Point: Remove trips that caught any PMUS species while catching <50lbs of uku in FY1985 and before
 BI_D_UKU  <- A[AREA%in%c(108,100,101,102,128,120,121,122)&SPECIES==20&FYEAR<=1985,list(UKU_LBS=sum(LBS)),by=list(TRIP)]  # DAR grids off Kona and South Point that caught uku
@@ -96,7 +97,7 @@ FISHER_INFO <- merge(FISHER_INFO,FISHER_UKU,by="FISHER",all.x=T)
 
 # Select fishers to keep
 FISHER_KEEP <- FISHER_INFO[PROP_FLD<0.95&!is.na(UKU_LBS)]$FISHER
-A <- A[FISHER%in%FISHER_KEEP|DATE>="2003-01-01"]  # Filter those fishers out (while making sure to keep the newer segment of the data)
+A           <- A[FISHER%in%FISHER_KEEP|DATE>="2003-01-01"]  # Filter those fishers out (while making sure to keep the newer segment of the data)
 
 # Remove fishing independent survey trips 
 FI        <- read.csv("Data\\FI to HDAR grid_priortoFY16.csv",header=T)
@@ -241,6 +242,11 @@ A <- dplyr::select(A,FYEAR,MONTH,DATE,TRIP,FISHER,CUM_EXP,LICENSE,LAT,LONG,AREA,
 
 } # END OF IF-GETWIND loop
 
+#Give lat/long of all AREA for future needs
+AREA_LOC$AREA_ID <- as.character(AREA_LOC$AREA_ID)
+AREA_LOC         <- dplyr::select(AREA_LOC,AREA_ID,LONG=POINT_X,LAT=POINT_Y)
+A                <- merge(A,AREA_LOC,by.x="AREA",by.y="AREA_ID",all.x=T)
+
 if(add.wind==F){ 
 A <- dplyr::select(A,FYEAR,MONTH,DATE,TRIP,FISHER,CUM_EXP,LICENSE,LAT,LONG,AREA,AREA_A,AREA_B,AREA_C,GEAR,HOURS,DAYS,SPECIES,LBS)
 }
@@ -281,12 +287,19 @@ B[is.na(UKU_INTRIP)]$UKU_INTRIP <- 0
 # Calculate area that has most uku in multi-area trips and replace with single area (can take several minutes)
 Proc_Trips <- data.table()
 for(i in 1:nrow(TRIP_INFO)){
- 
+  
   aTrip         <- B[TRIP%in%TRIP_INFO[i]]  # Extract the trip
-  aTrip         <- select(aTrip,TRIP,FYEAR:LICENSE,GEAR:DAYS,SPECIES:UKU_INTRIP,AREA,LAT:AREA_C,SPEED:YDIR) # Re-order to make variable selection easier
+  if(add.wind==T)  aTrip <- dplyr::select(aTrip,TRIP,FYEAR:LICENSE,GEAR:DAYS,SPECIES:UKU_INTRIP,AREA,LAT:AREA_C,SPEED:YDIR) # Re-order to make variable selection easier
+  if(add.wind==F)  aTrip <- dplyr::select(aTrip,TRIP,FYEAR:LICENSE,GEAR:DAYS,SPECIES:UKU_INTRIP,AREA,LAT:AREA_C)
   aTrip         <- aTrip[order(-UKU_INTRIP,AREA)] # Order records to have top line be highest uku or lowest Area number
-  SELECTED      <- aTrip[1,14:22] # Select top trip
-  aTrip[,14:22] <- SELECTED       # Apply top trip information to all records
+  if(add.wind==T){ 
+     SELECTED      <- aTrip[1,14:22] # Select top trip
+     aTrip[,14:22] <- SELECTED       # Apply top trip information to all records
+  }
+  if(add.wind==F){
+    SELECTED      <- aTrip[1,14:19] # Select top trip
+    aTrip[,14:19] <- SELECTED       # Apply top trip information to all records
+  }
   Proc_Trips    <- rbind(Proc_Trips,aTrip)
   print(paste(i,"of",nrow(TRIP_INFO),"trips"))
 }
@@ -329,12 +342,12 @@ SP_CATCH$CUMU_PROP <- round(SP_CATCH$CUMU/sum(SP_CATCH$LBS),4)
 SP_REJECT          <- SP_CATCH[PROP<0.01&SPECIES!="S20"]      #Alternatively, drop species corresponding to less than 1% of total catch (Winker et al. 2013)
 No.species         <- length(unique(SP_CATCH[PROP>0.01|SPECIES=="S20"]$SPECIES))
 
-if(add.wind==T) No.variables <- 16
-if(add.wind==F) No.variables <- 13 
+if(add.wind==T) No.variables <- 17
+if(add.wind==F) No.variables <- 14
 
 # Only keep the species making up 99% of the catch and uku (obviously)
-if(add.wind==T) D <- dcast(C,TRIP+FYEAR+MONTH+DATE+FISHER+CUM_EXP+AREA+AREA_A+AREA_B+AREA_C+LAT+LONG+GEAR+SPEED+XDIR+YDIR~SPECIES,value.var="CPUE",fun.aggregate=sum)
-if(add.wind==F) D <- dcast(C,TRIP+FYEAR+MONTH+DATE+FISHER+CUM_EXP+AREA+AREA_A+AREA_B+AREA_C+LAT+LONG+GEAR~SPECIES,value.var="CPUE",fun.aggregate=sum)
+if(add.wind==T) D <- dcast(C,TRIP+FYEAR+MONTH+DATE+FISHER+CUM_EXP+AREA+AREA_A+AREA_B+AREA_C+LAT+LONG+GEAR+SPEED+XDIR+YDIR+HOURS~SPECIES,value.var="CPUE",fun.aggregate=sum)
+if(add.wind==F) D <- dcast(C,TRIP+FYEAR+MONTH+DATE+FISHER+CUM_EXP+AREA+AREA_A+AREA_B+AREA_C+LAT+LONG+GEAR+HOURS~SPECIES,value.var="CPUE",fun.aggregate=sum)
 
 D <- data.table(D)
 D <- D[, (SP_REJECT$SPECIES):=NULL]
@@ -379,8 +392,8 @@ for(i in 1:variables) if(NF$Eigenvalues[i]>=1&(NF$Eigenvalues[i]>=NF$Pred.eig[i]
 E <- cbind(D[,1:S20],PCA$x[,1:4],PC_KEEP)
 
 # Save this record
-if(add.wind==T) E <- dplyr::select(E,TRIP,FYEAR,MONTH,DATE,FISHER,CUM_EXP,LAT,LONG,SPEED,XDIR,YDIR,AREA,AREA_A,AREA_B,AREA_C,PC1,PC2,PC3,PC4,PC_KEEP,UKUCPUE=S20)
-if(add.wind==F) E <- dplyr::select(E,TRIP,FYEAR,MONTH,DATE,FISHER,CUM_EXP,LAT,LONG,AREA,AREA_A,AREA_B,AREA_C,PC1,PC2,PC3,PC4,PC_KEEP,UKUCPUE=S20)
+if(add.wind==T) E <- dplyr::select(E,TRIP,FYEAR,MONTH,DATE,FISHER,CUM_EXP,LAT,LONG,SPEED,XDIR,YDIR,AREA,AREA_A,AREA_B,AREA_C,PC1,PC2,PC3,PC4,PC_KEEP,HOURS,UKUCPUE=S20)
+if(add.wind==F) E <- dplyr::select(E,TRIP,FYEAR,MONTH,DATE,FISHER,CUM_EXP,LAT,LONG,AREA,AREA_A,AREA_B,AREA_C,PC1,PC2,PC3,PC4,PC_KEEP,HOURS,UKUCPUE=S20)
 
 E <- E[order(DATE,AREA_C,TRIP)]
 

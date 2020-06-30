@@ -1,7 +1,11 @@
-require(data.table);require(reshape2); require(openxlsx);require(plyr); require(boot); require(ggplot2); require(dplyr); require(stringr)
+require(data.table);require(reshape2); require(openxlsx);require(plyr); require(boot); require(ggplot2); require(dplyr); require(stringr);require(sf); require(rnaturalearth);
+library("png"); library("grid");library("gridExtra")
 
 load("Data/ALL_REA_FISH_RAW.rdata")   
 UVS <- data.table(df)
+
+UVS[OBS_YEAR==2006]$OBS_YEAR <- 2005
+UVS[OBS_YEAR==2013]$OBS_YEAR <- 2012
 
 #===Core Filters==============================
 UVS <- UVS[EXCLUDE_FLAG!=-1]
@@ -9,8 +13,35 @@ UVS$SIZE_ <- UVS$SIZE_*10*0.9 # Convert to mm FL
 UVS  <- UVS[REGION=="MHI"]
 UVS  <- UVS[METHOD!="nSPC-CCR"&METHOD!="SPC"]
 UVS  <- UVS[OBS_TYPE=='U' | OBS_TYPE=='I' | OBS_TYPE=='N' ]
-UVS <- subset(UVS,select=c("METHOD","OBS_TYPE","OBS_YEAR","REGION","ISLAND","SECTOR","SITE","SITEVISITID","DEPTH_BIN","REP","DIVER","FAMILY","SPECIES","SIZE_","COUNT","DENSITY","BIOMASS_G_M2"))
+UVS <- subset(UVS,select=c("METHOD","OBS_TYPE","OBS_YEAR","REGION","ISLAND","SECTOR","SITE","LONGITUDE","LATITUDE","SITEVISITID","DEPTH_BIN","REP","DIVER","FAMILY","SPECIES","SIZE_","COUNT","DENSITY","BIOMASS_G_M2"))
 UVS <- data.table(   mutate_if(UVS,is.factor,as.character)  )
+
+# Create yearly map of the survey sites
+
+MAP      <- UVS[,list(SUM=sum(COUNT)),by=list(OBS_YEAR,SECTOR,ISLAND,LONGITUDE,LATITUDE,SITEVISITID)]
+coast    <- ne_coastline(scale="medium",returnclass="sf") 
+aTheme   <- theme(axis.text=element_text(size=6),
+                legend.title=element_text(size=4),
+                axis.title=element_text(size=6),
+                title=element_text(size=6)
+             )
+
+aList <- list()
+YearList <- unique(MAP$OBS_YEAR)
+YearList <- sort(YearList)
+for(i in 1:length(YearList)){
+aList[[i]] <- ggplot()+geom_sf(data=coast,lwd=1)+
+  coord_sf(xlim=c(-154,-161),ylim=c(18,23))+
+  geom_point(data=MAP[OBS_YEAR==YearList[i]],aes(x=LONGITUDE,y=LATITUDE),size=1,color="red")+
+  ggtitle(YearList[i])+theme_bw(base_size=20)+aTheme
+
+}
+
+aGrid <- grid.arrange(aList[[1]],aList[[2]],aList[[3]],aList[[4]],aList[[5]],aList[[6]],ncol=2)
+
+
+mypath <- paste("Outputs/Graphs/Spatial/01_SPAT_DIVESITES.png",sep="")
+ggsave(mypath,plot=aGrid,units="cm",height=20,width=15, pointsize=1, dpi=300)
 
 #====================Inputs====================
 LS50 <- 350  # Recreational selectivity
@@ -40,8 +71,7 @@ UVS <- merge(UVS,WEIGHTS,by="ISLANDGROUP")
 
 #============Some filters and conversions==================
 UVS$DEPTH_BIN2 <- UVS$DEPTH_BIN
-UVS[OBS_YEAR==2006]$OBS_YEAR <- 2005
-UVS[OBS_YEAR==2013]$OBS_YEAR <- 2012
+
 
 UVS[DEPTH_BIN=="Mid"|DEPTH_BIN=="Deep"]$DEPTH_BIN2 <- "Deep"
 UVS <- UVS[DEPTH_BIN!="Shallow"]

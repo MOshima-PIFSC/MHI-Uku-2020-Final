@@ -1,6 +1,14 @@
 wd=c("C:\\Users\\michelle.sculley\\Documents\\Uku\\Assessment\\SS3\\010_Base")
+wd=c("C:\\Users\\Marc.Nadon\\Documents\\Work docs\\01_Projects\\002_Uku assessment\\0_R_Uku\\SS3\\026_Base")
+wd=c("D:\\Marc\\Work docs\\01_Projects\\002_Uku assessment\\0_R_Uku\\SS3\\026_Base")
 
-wd=c("C:\\Users\\michelle.sculley\\Documents\\Uku\\021_Base")
+
+#wd=c("C:\\Users\\michelle.sculley\\Documents\\Uku\\021_Base")#\\Estimate Sigma R")
+#wd2=c("C:\\Users\\michelle.sculley\\Documents\\Uku\\021_Base\\TimeVaryQ")
+
+
+
+#\\SuperYears")
 
 wdF=c("C:\\Users\\michelle.sculley\\Documents\\Uku\\021_Base\\rawF")
 
@@ -14,6 +22,16 @@ library(r4ss);library(ggplot2);library(reshape2);library(scales);library(RColorB
 base.model<-SS_output(wd)
 SS_plots(base.model) 
 
+Comparisons<-SSgetoutput(dirvec=c(wd,wd2))
+Start1970 <- SSsummarize(Comparisons)
+SSplotComparisons(Start1970)
+
+TimeVaryQ<-SSsummarize(Comparisons)
+SSplotComparisons(TimeVaryQ, print=TRUE, plotdir=wd2, legendlabels = c("Basecase","Time-varying q"), indexfleets=c(6,7,8,9,10))
+TimeQ<-SS_output(wd2)
+SS_plots(TimeQ)
+
+
 ##run a model with F set in the starter menu to raw F
 rawFModel<-SS_output(wdF)
 
@@ -21,7 +39,9 @@ rawFModel<-SS_output(wdF)
 ## only necessary if the data plot is squished. May need to adjust the margins to fit the data
 # SSplotData(base.model,pheight=7, pwidth = 10, margins = c(5.1,2.1,2.1,18.1),plot=TRUE, print=TRUE)
 
+##### Comment 1
 
+#####
 
 ##Retrospective analysis and plots
 
@@ -49,13 +69,13 @@ for(i in 1:6){
 SummaryBratio[,7:8]<-SummaryBio[,7:8]
 SummaryBio<-melt(SummaryBio,id.vars=c("Label","Yr"))
 SummaryBio<-subset(SummaryBio,Yr>=1948)
-RemoveVector<-c(which(SummaryBio$variable=="retro-1"&SummaryBio$Yr==2017),which(SummaryBio$variable=="retro-2"&SummaryBio$Yr>=2016),which(SummaryBio$variable=="retro-3"&SummaryBio$Yr>=2015),which(SummaryBio$variable=="retro-4"&SummaryBio$Yr>=2014),which(SummaryBio$variable=="retro-5"&SummaryBio$Yr>=2013))
+RemoveVector<-c(which(SummaryBio$variable=="retro-1"&SummaryBio$Yr==2018),which(SummaryBio$variable=="retro-2"&SummaryBio$Yr>=2017),which(SummaryBio$variable=="retro-3"&SummaryBio$Yr>=2016),which(SummaryBio$variable=="retro-4"&SummaryBio$Yr>=2015),which(SummaryBio$variable=="retro-5"&SummaryBio$Yr>=2014))
 SummaryBio<-SummaryBio[-RemoveVector,]
 
 names(SummaryBratio)<-c("basecase","retro-1","retro-2","retro-3","retro-4","retro-5","Label","Yr")
 SummaryBratio<-melt(SummaryBratio,id.vars=c("Label","Yr"))
 SummaryBratio<-subset(SummaryBratio,Yr>=1948)
-RemoveVector<-c(which(SummaryBratio$variable=="retro-1"&SummaryBratio$Yr==2017),which(SummaryBratio$variable=="retro-2"&SummaryBratio$Yr>=2016),which(SummaryBratio$variable=="retro-3"&SummaryBratio$Yr>=2015),which(SummaryBratio$variable=="retro-4"&SummaryBratio$Yr>=2014),which(SummaryBratio$variable=="retro-5"&SummaryBratio$Yr>=2013))
+RemoveVector<-c(which(SummaryBratio$variable=="retro-1"&SummaryBratio$Yr==2018),which(SummaryBratio$variable=="retro-2"&SummaryBratio$Yr>=2017),which(SummaryBratio$variable=="retro-3"&SummaryBratio$Yr>=2016),which(SummaryBratio$variable=="retro-4"&SummaryBratio$Yr>=2015),which(SummaryBratio$variable=="retro-5"&SummaryBratio$Yr>=2014))
 SummaryBratio<-SummaryBratio[-RemoveVector,]
 
 
@@ -74,7 +94,7 @@ c<-ggplot() +
   theme(panel.border = element_rect(color="black",fill=NA,size=1),
         panel.background = element_blank(), strip.background = element_blank(),
         legend.position = "none") +
-  scale_color_manual(values = c("basecase" = "black","retro-1" = "red", "retro-2"="orange","retro-3"="yellow","retro-4"="green","retro-5"="blue", "basecase"="black")) + xlab("Year") + ylab("B/BMSST") +
+  scale_color_manual(values = c("basecase" = "black","retro-1" = "red", "retro-2"="orange","retro-3"="yellow","retro-4"="green","retro-5"="blue", "basecase"="black")) + xlab("Year") + ylab("SSB/SSBMSST") +
   geom_line(aes(x=Yr,y=value),data=subset(SummaryBratio,variable=="basecase"),color="black", size=1) +
   ylim(0,3) + geom_hline(aes(yintercept=1), linetype="dashed", data=SummaryBratio)
 
@@ -85,7 +105,7 @@ FishingMort<-retroSummary$Fvalue
 names(FishingMort)<-c("basecase","retro-1","retro-2","retro-3","retro-4","retro-5","Label","Yr")
 FishingMort<-melt(FishingMort,id.vars=c("Label","Yr"))
 FishingMort<-subset(FishingMort,Yr>=1948)
-RemoveVector<-c(which(FishingMort$variable=="retro-1"&FishingMort$Yr==2017),which(FishingMort$variable=="retro-2"&FishingMort$Yr>=2016),which(FishingMort$variable=="retro-3"&FishingMort$Yr>=2015),which(FishingMort$variable=="retro-4"&FishingMort$Yr>=2014),which(FishingMort$variable=="retro-5"&FishingMort$Yr>=2013))
+RemoveVector<-c(which(FishingMort$variable=="retro-1"&FishingMort$Yr==2018),which(FishingMort$variable=="retro-2"&FishingMort$Yr>=2017),which(FishingMort$variable=="retro-3"&FishingMort$Yr>=2016),which(FishingMort$variable=="retro-4"&FishingMort$Yr>=2015),which(FishingMort$variable=="retro-5"&FishingMort$Yr>=2014))
 FishingMort<-FishingMort[-RemoveVector,]
 
 b<-ggplot() +
@@ -114,7 +134,8 @@ SumRecruit$Year<-seq(1948,2018,1)
 SumBioSpawn<-base.model$derived_quants[3:73,]
 SumBioSpawn$Year<-seq(1948,2018,1)
 SSBRatio<-SumBioSpawn$x/base.model$derived_quants[1,2]
-Fseries<-rawFModel$derived_quants[218:288,]
+#Fseries<-rawFModel$derived_quants[218:288,]
+Fseries <- base.model$derived_quants[218:288,]
 Fseries$Year<-seq(1948,2018,1)
 
 #Fishing Mortality
@@ -124,7 +145,7 @@ ggplot()+
   geom_point(aes(x=Year,y=Value), data=Fseries,size=4)+
   geom_errorbar(aes(x=Year,ymin=Value-1.96*StdDev,ymax=Value+1.96*StdDev),data=Fseries,size=1.5)+
   geom_line(aes(x=Year,y=Value),data=Fseries,size=1)+
-  geom_hline(yintercept=0.16,color="green",linetype = 2, size=1.5)+
+  geom_hline(yintercept=0.137,color="green",linetype = 2, size=1.5)+
   ylab("Fishing Mortality (Ages 5-30)") +
   theme(axis.text.x=element_text(size=18,face="bold"), axis.title.x=element_text(size=24,face="bold"),
         axis.text.y=element_text(size=18,face="bold"),axis.title.y=element_text(size=24,face="bold"),
@@ -273,25 +294,57 @@ ggplot()+
 ##For the catch summary figure (by year and fleet)
     ## This one looks better than the one from r4ss
 ## Unnecessary for Uku, useful for international fisheries
- Catch<-base.model$timeseries[,c("Yr","sel(B):_1","sel(B):_2","sel(B):_3","sel(B):_4","sel(B):_5")]
- names(Catch)<-c("Yr","Com_DSH","Com_ISH","Com_Trol","Com_Other","Rec")
- 
- CatchTotal<-melt(Catch, id.vars=c("Yr"))
- names(CatchTotal)<-c("Year","Name","Obs")
- 
- colourCount = length(unique(CatchTotal$Name))
+ Catch<-base.model$catch[,c("Fleet","Fleet_Name","Yr","Seas","Obs")]
+
+ colourCount = length(unique(Catch$Fleet_Name))
  getPalette =colorRampPalette(brewer.pal(11, "Spectral"))
  Fill<-getPalette(colourCount)
  png("Catch.png", height=4, width=8, units="in",res=300)
  ggplot()+
-     geom_bar(aes(x=Year,y=Obs,fill=Name),data=CatchTotal,stat="identity",color="black") +
+     geom_bar(aes(x=Yr,y=Obs,fill=Fleet_Name),data=Catch,stat="identity",color="black") +
      scale_fill_manual(values = Fill, name="")+
      xlab("Year") +
      ylab("Catch (mt)") +
-     theme_bw()
+     theme_bw() 
 dev.off()
 
+CatchLabels<-c("Deep Sea Handline","Inshore Handline",  "Commercial Other", "Trolling","Recreational")
+names(CatchLabels)<-c("Catch_Com_DSH", "Catch_Com_ISH", "Catch_Com_Other", "Catch_Com_Trol", "Catch_Rec")
 
+png("CatchByFleet2.png",height=12,width=10, units="in",res=300)
+ggplot()+
+  geom_line(aes(x=Yr,y=Obs,colour=Fleet_Name),data=subset(Catch,Yr>1948),stat="identity") +
+  scale_color_manual(values = c(Fill[c(1,2,4,5)],"black"), name="")+
+  xlab("Year") +
+  ylab("Catch (mt)") +
+  theme_bw(base_size=22) +
+  facet_wrap(~Fleet_Name,scales="free_y",ncol=2,labeller = labeller(Fleet_Name=CatchLabels) ) +
+  theme(legend.position="none", strip.background = element_blank())
+dev.off()
+
+### Fishing mortality by fleet
+FbyFleet<-base.model$catch[,c("Fleet_Name","Yr","F")]
+
+png("FByFleet1.png",height=8,width=12, units="in",res=200)
+ggplot()+
+  geom_line(aes(x=Yr,y=F,colour=Fleet_Name),data=subset(FbyFleet,Yr>=1948),stat="identity") +
+#  scale_color_manual(values = Fill, name="")+
+  xlab("Year") +
+  ylab("Catch (mt)") +
+  theme_bw() +
+  facet_wrap(~Fleet_Name )
+dev.off()
+
+png("FByFleet2.png",height=12,width=10, units="in",res=300)
+ggplot()+
+  geom_line(aes(x=Yr,y=F,color=Fleet_Name),data=subset(FbyFleet,Yr>=1948),stat="identity") +
+  scale_color_manual(values = c(Fill[c(1,2,4,5)],"black"), name="")+
+  xlab("Year") +
+  ylab("Fishing mortality") +
+  theme_bw(base_size = 22) +
+  facet_wrap(~Fleet_Name,scales="free_y",ncol=2,labeller = labeller(Fleet_Name=CatchLabels)  ) +
+  theme(legend.position="none", strip.background = element_blank())
+dev.off()
 
 ##Bubble Plots of quarterly size composition by fleet
  SizeComp<-read.csv("C:\\Users\\michelle.sculley\\Documents\\Uku\\SizeComp.csv", header=TRUE)
@@ -325,7 +378,6 @@ dev.off()
      labs(x="Eye-Fork Length (cm)",y="Number of fish measured") +
      geom_point(aes(x=Length,y=NumMeasured),data=subset(SizeCompTot, Fleet<=18), color="blue")
  dev.off()
-
 
 
 

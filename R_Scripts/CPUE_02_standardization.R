@@ -1,20 +1,65 @@
 require(data.table); require(ggplot2); require(mgcv);  require(MASS); require(dplyr); require(emmeans); require(lme4); require(boot); require(glmmTMB)
 
-Gear.name <- c("DEEP_HANDLINE","INSHORE_HANDLINE","TROLLING")[3]
-RES_LIK   <- T
+RES_LIK            <- T
 
-C         <- readRDS(paste0("Outputs/CPUE_",Gear.name,"_StepC.rds"))
+# CPUE time series options
+#==========================
+Gear.name          <- c("DEEP_HANDLINE","INSHORE_HANDLINE","TROLLING")[1]
+Only.recent        <- F # Only >=2003-01-01 series (e.g. gear types that only start recently)
+Only.old           <- F # Only the old time series
+CPUE.seperated     <- F # Select if CPUE time series to be analyzed as one continuous series (effort unit=Days) or 2 seperate series split on 2003-01-01
+Effort.unit.recent <- c("Hours","Days")[1] # Select effort units to use for the post-2003 time series
+Old.series.start   <- "1948-01-01" # Select date where the old time series starts
+#==========================
 
-C$FYEAR           <- as.character(C$FYEAR)
-C$PRES            <- 0
-C[UKUCPUE>0]$PRES <- 1
+if(Gear.name=="DEEP_HANDLINE")    ShortName <- "DSH"
+if(Gear.name=="INSHORE_HANDLINE") ShortName <- "ISH"
+if(Gear.name=="TROLLING")         ShortName <- "TROL"
+
+C                <- readRDS(paste0("Outputs/CPUE_",Gear.name,"_StepC.rds"))
+C$FYEAR          <- as.character(C$FYEAR)
 
 # Arrange datasets for CPUE standardization
-O <- C[DATE<"2003-01-01"]
-R <- C[DATE>="2003-01-01"&!is.na(SPEED)]
+if(Only.old==F){
+  R <- C[DATE>="2003-01-01"&!is.na(SPEED)] # The "recent" CPUE time series doesn't change according to scenario, just the "old" one.
+}
+if(CPUE.seperated==T){
 
-O <- dplyr::select(O,TRIP,FYEAR,MONTH,CUM_EXP,FISHER,LAT,LONG,AREA,AREA_A,AREA_B,AREA_C,PC1,PC2,UKUCPUE,PRES)                 # Old data
-R <- dplyr::select(R,TRIP,FYEAR,MONTH,CUM_EXP,FISHER,LAT,LONG,SPEED,XDIR,YDIR,AREA,AREA_A,AREA_B,AREA_C,PC1,PC2,UKUCPUE,PRES) # Recent data
+     O <- C[DATE >=Old.series.start&DATE<"2003-01-01"]
+     
+} else if(CPUE.seperated==F){
+  
+     O <- C[DATE>=Old.series.start]   
+}
+
+
+# These steps are to convert CPUE in hours back to CPUE in single reporting days for the Recent data (as an alternative scenario requested by reviewers)
+if(CPUE.seperated==T&Effort.unit.recent=="Days"&Only.old==F){ # Analyze CPUE as 2 series, but convert recent time series to daily effort metric
+   
+  R$UKUCPUE  <- R$HOURS*R$UKUCPUE
+  R$TRIP     <- paste0(R$DATE,R$FISHER)
+  R          <- R[,list(LBS=sum(LBS),PC1=mean(PC1),PC2=mean(PC2),CUM_EXP=mean(CUM_EXP),SPEED=mean(SPEED)),by=list(TRIP,FYEAR,MONTH,FISHER,AREA,AREA_A,AREA_B,AREA_C)]
+}
+
+
+if(CPUE.seperated==F){ # Lines below are for alternative runs where we go from 1992 to 2018 or 1948-2018, etc. (effort as days)
+
+  O[DATE>="2003-01-01"]$UKUCPUE <- O[DATE>="2003-01-01"]$HOURS*O[DATE>="2003-01-01"]$UKUCPUE
+  O[DATE>="2003-01-01"]$TRIP    <- paste0(O[DATE>="2003-01-01"]$DATE,O[DATE>="2003-01-01"]$FISHER)
+  O                             <- O[,list(UKUCPUE=sum(UKUCPUE),PC1=mean(PC1),PC2=mean(PC2),CUM_EXP=mean(CUM_EXP)),by=list(TRIP,FYEAR,MONTH,FISHER,AREA,AREA_A,AREA_B,AREA_C)]
+}
+
+
+O$PRES            <- 0
+O[UKUCPUE>0]$PRES <- 1
+
+if(Only.old==F){
+R$PRES            <- 0
+R[UKUCPUE>0]$PRES <- 1
+}
+
+O <- dplyr::select(O,TRIP,FYEAR,MONTH,CUM_EXP,FISHER,AREA,AREA_A,AREA_B,AREA_C,PC1,PC2,UKUCPUE,PRES)                 # Old data
+if(Only.old==F) R <- dplyr::select(R,TRIP,FYEAR,MONTH,CUM_EXP,FISHER,SPEED,AREA,AREA_A,AREA_B,AREA_C,PC1,PC2,UKUCPUE,PRES) # Recent data
 
 
 # =============================================================================================================
@@ -23,6 +68,7 @@ R <- dplyr::select(R,TRIP,FYEAR,MONTH,CUM_EXP,FISHER,LAT,LONG,SPEED,XDIR,YDIR,AR
 # =============================================================================================================
 
 #==========Old dataset - Positive-only data===============
+if(Only.recent==F){
 Models.OldPos  <- list()
 Models.OldPos  <- append(Models.OldPos,list(glmmTMB(data=O[UKUCPUE>0],log(UKUCPUE)~1,REML=RES_LIK)         )) 
 Models.OldPos  <- append(Models.OldPos,list(glmmTMB(data=O[UKUCPUE>0],log(UKUCPUE)~FYEAR,REML=RES_LIK)         )) 
@@ -41,7 +87,7 @@ if(Gear.name=="DEEP_HANDLINE"){
   BestOldPos     <- lmer(data=O[UKUCPUE>0],log(UKUCPUE)~FYEAR+(1|FISHER)+AREA_A*factor(MONTH)+poly(PC1,2,raw=T),REML=RES_LIK)
   Models.OldPos  <- append(Models.OldPos,list(BestOldPos)) 
 } else if(Gear.name=="INSHORE_HANDLINE"){
-  BestOldPos     <- lmer(data=O[UKUCPUE>0],log(UKUCPUE)~FYEAR+(1|FISHER)+AREA_A+factor(MONTH)+PC1,REML=RES_LIK)
+  BestOldPos     <- lmer(data=O[UKUCPUE>0],log(UKUCPUE)~FYEAR+(1|FISHER)+AREA_A+factor(MONTH)+log(CUM_EXP)+PC1+poly(PC2,2,raw=T),REML=RES_LIK)
   Models.OldPos  <- append(Models.OldPos,list(BestOldPos)) 
 } else if(Gear.name=="TROLLING"){
   BestOldPos     <- lmer(data=O[UKUCPUE>0],log(UKUCPUE)~FYEAR+(1|FISHER)+AREA_A,REML=RES_LIK)
@@ -76,7 +122,7 @@ if(Gear.name=="DEEP_HANDLINE"){
   BestOldPres     <- glm(data=O,PRES~FYEAR+AREA_A+factor(MONTH)+poly(PC1,2,raw=T)+poly(PC2,2,raw=T),family=binomial("logit"))
   Models.OldPres  <- append(Models.OldPres,list(BestOldPres)) 
 } else if(Gear.name=="INSHORE_HANDLINE"){
-  BestOldPres     <- glm(data=O,PRES~FYEAR+AREA_A+factor(MONTH)+log(CUM_EXP)+PC1+PC2,family=binomial("logit"))
+  BestOldPres     <- glm(data=O,PRES~FYEAR+AREA_A+factor(MONTH)+poly(PC1,2,raw=T)+poly(PC2,2,raw=T),family=binomial("logit"))
   Models.OldPres  <- append(Models.OldPres,list(BestOldPres)) 
 } else if(Gear.name=="TROLLING"){
   BestOldPres     <- glm(data=O,PRES~FYEAR+AREA_A+factor(MONTH)+log(CUM_EXP)+PC1+PC2,family=binomial("logit"))
@@ -93,9 +139,9 @@ for(i in 1:NUM_MOD){
 }
 Results.OldPres[1:NUM_MOD]$DELTA_AIC  <- Results.OldPres[1:NUM_MOD]$AIC-min(Results.OldPres[1:NUM_MOD]$AIC,na.rm=T)
 Results.OldPres$TYPE <- "Old - Presence"
-
+} # End of only.recent If statement
 #===========Recent dataset - Positive-only data=====================
-
+if(CPUE.seperated==T&Only.old==F){
 Models.RecPos  <- list()
 Models.RecPos  <- append(Models.RecPos,list(glmmTMB(data=R[UKUCPUE>0],log(UKUCPUE)~1,REML=RES_LIK)         ))  
 Models.RecPos  <- append(Models.RecPos,list(glmmTMB(data=R[UKUCPUE>0],log(UKUCPUE)~FYEAR,REML=RES_LIK)         ))  
@@ -167,12 +213,20 @@ for(i in 1:NUM_MOD){
 }
 Results.RecPres[1:NUM_MOD]$DELTA_AIC  <- Results.RecPres[1:NUM_MOD]$AIC-min(Results.RecPres[1:NUM_MOD]$AIC,na.rm=T)
 Results.RecPres$TYPE <- "Recent - Presence"
+} # End of If statement for CPUE.seperated ==T
 
 # Put results together and define the best model for each CPUE component
-Results.Models <- rbind(Results.OldPos,Results.OldPres,Results.RecPos,Results.RecPres)
-write.csv(Results.Models,paste0("Outputs/Graphs/CPUE/",Gear.name,"/CPUE models_",Gear.name,".csv"),row.names=F)
+if((CPUE.seperated==F&Only.recent==F)|Only.old==T) Results.Models <- rbind(Results.OldPos,Results.OldPres)
+if(CPUE.seperated==T&Only.recent==F)               Results.Models <- rbind(Results.OldPos,Results.OldPres,Results.RecPos,Results.RecPres)
+if(CPUE.seperated==T&Only.recent==T)               Results.Models <- rbind(Results.RecPos,Results.RecPres)
+
+write.csv(Results.Models,paste0("Outputs/Graphs/CPUE/",Gear.name,"/Models_",ShortName,"_2Qs=",CPUE.seperated,"_RecEFF=",Effort.unit.recent,"_OldSTART=",year(Old.series.start),".csv"),row.names=F)
 
 # Save best models
-M <- list(BestOldPos,BestOldPres,BestRecPos,BestRecPres)
-saveRDS(M,paste0("Outputs","/CPUE models_",Gear.name,".rds"))
+if((CPUE.seperated==F&Only.recent==F)|Only.old==T) M <- list(BestOldPos,BestOldPres)
+if(CPUE.seperated==T&Only.recent==F)               M <- list(BestOldPos,BestOldPres,BestRecPos,BestRecPres)
+if(CPUE.seperated==T&Only.recent==T)               M <- list(BestRecPos,BestRecPres)
+
+saveRDS(M,paste0("Outputs","/CPUE models/",ShortName,"_2Qs=",CPUE.seperated,"_RecEFF=",Effort.unit.recent,"_OldSTART=",year(Old.series.start),".rds"))
+
 

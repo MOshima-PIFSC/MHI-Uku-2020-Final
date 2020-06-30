@@ -1,6 +1,6 @@
 require(ggplot2); require(data.table); require(dplyr); require(gridExtra)
 
-Gear.name <- "INSHORE_HANDLINE"
+Gear.name <- c("DEEP_HANDLINE","INSHORE_HANDLINE","TROLLING")[1]
 
 P <- readRDS(paste0("Outputs/CPUE_",Gear.name,"_StepC.rds"))
 
@@ -88,3 +88,17 @@ for(i in 1:6){
   filename <- file.path(paste0("Outputs/Graphs/CPUE/",Gear.name),paste0("NOMCPUEFIG",formatC(i,width=2,flag="0"),".tiff"))
   ggsave(graph.list[[i]], file=filename, width = 14, height = 8, units = "cm",dpi=150)  
 }
+
+
+
+test      <- P
+test$TRIP <- paste0(test$DATE,test$FISHER)
+
+test <- P[UKUCPUE>0,list(UKUCPUE=sum(UKUCPUE)),by=list(FYEAR,TRIP)]
+test <- P[UKUCPUE>0,list(UKUCPUE=mean(UKUCPUE)),by=list(FYEAR)]
+
+ggplot(data=test)+geom_line(aes(x=FYEAR,y=UKUCPUE))
+
+
+
+

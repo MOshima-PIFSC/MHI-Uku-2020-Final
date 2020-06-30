@@ -20,6 +20,18 @@ C <- C[AREA_C!="Offshore"] # Remove offshore areas to simplify spatial analysis
 E <- C                # Full dataset (all species and gear)
 C <- C[SPECIES==20]   # Just uku dataset
 
+# Quick exploration of effort data to calculate E/E'
+EFFORT1 <- E[,list(HOURS=sum(HOURS)),by=list(FYEAR, GEAR_A,TRIP)]
+EFFORT2 <- EFFORT1[FYEAR>=2003,list(HOURS=sum(HOURS)),by=list(FYEAR,GEAR_A)]
+
+CPUE1 <- E[SPECIES==20&FYEAR>=2003,list(UKULBS=sum(LBS)),by=list(FYEAR,GEAR_A,TRIP)]
+
+trips <- E[FYEAR>=2003,list(LBS=sum(LBS)),by=list(FYEAR,GEAR_A,TRIP)]
+trips$LBS <- 0
+
+test <- merge(CPUE1,trips,by=c("FYEAR","GEAR_A","TRIP"),all.y=T)
+test <- test[,list(UKULBS=sum(UKULBS)),by=list(FYEAR,GEAR_A)]
+
 # Global effort patterns
 E  <- E[,list(LBS=sum(LBS)),by=list(FYEAR,MONTH,DATE,TRIP,GEAR_A,AREA_C)]
 E  <- E[,list(NUM_REP=.N),by=list(FYEAR,MONTH,GEAR_A,AREA_C)]

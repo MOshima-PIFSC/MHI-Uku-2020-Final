@@ -1,14 +1,18 @@
 library(r4ss) 
  
  ##Needs to be the raw F model
- model_dir <- "C:\\Users\\michelle.sculley\\Documents\\Uku\\010_Base\\rawF"    #<----------------
-  setwd(model_dir)
+ #model_dir <- "C:\\Users\\michelle.sculley\\Documents\\Uku\\021_Base\\rawF"    #<----------------
+ model_dir <- "C:\\Users\\Marc.Nadon\\Documents\\Work docs\\01_Projects\\002_Uku assessment\\0_R_Uku\\SS3\\026_Base"    #<----------------
+ 
+ 
+ 
+ setwd(model_dir)
  base.model<-SS_output(getwd())
  # Kobe plot layout setting
  ## Adjust as needed
  x_max = 3.5
  x_min = 0
- y_max = 1.25
+ y_max = 1.5
  y_min = 0
  MSST_x = 0.9
  max_yr=2018
